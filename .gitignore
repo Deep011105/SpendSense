@@ -1,0 +1,11 @@
+.DS_Store
+**/.DS_Store
+**/node_modules/
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+**/*.class
+**/.env
+**/.idea/
+**/.vscode/
+**/dist/
+**/build/
