@@ -1,6 +1,7 @@
 package com.finance.tracker.service;
 
 import com.finance.tracker.dto.CategoryStatsDTO;
+import com.finance.tracker.dto.MonthlyStatsDTO;
 import com.finance.tracker.dto.StatsDTO;
 import com.finance.tracker.dto.TransactionDTO;
 import com.finance.tracker.model.Category;
@@ -8,11 +9,18 @@ import com.finance.tracker.model.Transaction;
 import com.finance.tracker.model.User;
 import com.finance.tracker.repo.CategoryRepo;
 import com.finance.tracker.repo.TransactionRepo;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class TransactionService {
@@ -66,20 +74,23 @@ public class TransactionService {
 
     // Add this method to TransactionService.java
 
-    public StatsDTO getDashboardStats(User user) {
-        BigDecimal totalIncome = transactionRepository.getTotalIncome(user);
-        BigDecimal totalExpense = transactionRepository.getTotalExpense(user);
+    // Update this method signature
+    public StatsDTO getDashboardStats(User user, LocalDate start, LocalDate end) {
 
-        // Handle nulls (if user has 0 transactions)
-        if (totalIncome == null) totalIncome = BigDecimal.ZERO;
-        if (totalExpense == null) totalExpense = BigDecimal.ZERO;
+        // 1. Calculate Total Income in Range
+        BigDecimal totalIncome = transactionRepository.sumByTypeAndDate(user, "INCOME", start, end);
 
-        StatsDTO stats = new StatsDTO();
-        stats.setTotalIncome(totalIncome);
-        stats.setTotalExpense(totalExpense);
-        stats.setBalance(totalIncome.subtract(totalExpense));
+        // 2. Calculate Total Expense in Range
+        BigDecimal totalExpense = transactionRepository.sumByTypeAndDate(user, "EXPENSE", start, end);
 
-        return stats;
+        // Handle Nulls (if no transactions exist in range)
+        totalIncome = (totalIncome == null) ? BigDecimal.ZERO : totalIncome;
+        totalExpense = (totalExpense == null) ? BigDecimal.ZERO : totalExpense;
+
+        // 3. Calculate Balance
+        BigDecimal balance = totalIncome.subtract(totalExpense);
+
+        return new StatsDTO(totalIncome, totalExpense, balance);
     }
 
     // In TransactionService.java
@@ -89,5 +100,48 @@ public class TransactionService {
 
     public List<CategoryStatsDTO> getExpenseStats(User user) {
         return transactionRepository.findExpenseStatsByUser(user);
+    }
+
+    public Page<Transaction> getAllTransactions(int page, int size) {
+        // PageRequest.of(pageNumber, itemsPerPage, SortOrder)
+        // This creates a "page" request sorted by Date (Newest first)
+        Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending());
+        return transactionRepository.findAll(pageable);
+    }
+
+    // ... inside TransactionService class
+
+    public List<com.finance.tracker.dto.MonthlyStatsDTO> getMonthlyStats(User user) {
+        // 1. Get Start and End of Current Year
+        int currentYear = LocalDate.now().getYear();
+        LocalDate start = LocalDate.of(currentYear, 1, 1);
+        LocalDate end = LocalDate.of(currentYear, 12, 31);
+
+        // 2. Fetch ALL transactions for this year
+        // (Re-using the method we created earlier)
+        List<Transaction> transactions = findTransactionsByDateRange(user, start, end);
+
+        // 3. Initialize the 12-month skeleton (so empty months show as 0 instead of missing)
+        Map<Integer, MonthlyStatsDTO> statsMap = new LinkedHashMap<>();
+        String[] months = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"};
+
+        for (int i = 0; i < 12; i++) {
+            statsMap.put(i + 1, new MonthlyStatsDTO(months[i], BigDecimal.ZERO, BigDecimal.ZERO));
+        }
+
+        // 4. Group Data
+        for (Transaction t : transactions) {
+            int monthIndex = t.getDate().getMonthValue(); // 1 = Jan, 2 = Feb...
+            MonthlyStatsDTO dto = statsMap.get(monthIndex);
+
+            if ("INCOME".equalsIgnoreCase(t.getType())) {
+                dto.setIncome(dto.getIncome().add(t.getAmount()));
+            } else {
+                dto.setExpense(dto.getExpense().add(t.getAmount()));
+            }
+        }
+
+        // 5. Convert Map to List
+        return new ArrayList<>(statsMap.values());
     }
 }

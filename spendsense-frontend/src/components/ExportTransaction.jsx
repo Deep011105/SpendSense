@@ -35,26 +35,23 @@ const ExportTransaction = () => {
     };
 
     return (
-        // 1. CONTAINER: bg-white -> dark:bg-dark-card, border colors
-        <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-700 max-w-md transition-colors">
+        <div className="bg-white dark:bg-dark-card p-6 rounded-lg shadow-md border border-gray-100 dark:border-gray-800 max-w-md transition-colors duration-300">
             
-            {/* 2. HEADING: text-gray-800 -> dark:text-dark-text */}
             <h3 className="text-xl font-bold text-gray-800 dark:text-dark-text mb-4">
                 Export Data
             </h3>
             
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                    {/* 3. LABELS: text-gray-600 -> dark:text-gray-400 */}
                     <label className="text-sm font-medium text-gray-600 dark:text-gray-400">From:</label>
                     
-                    {/* 4. INPUTS: Added dark background, lighter border, and white text */}
+                    {/* UPDATED: Changed slate-700 to gray-800 for neutral black theme match */}
                     <input 
                         type="date" 
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="p-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent 
-                                   bg-white dark:bg-slate-700 dark:text-white dark:color-scheme-dark" 
+                        className="p-2 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent 
+                                   bg-white dark:bg-gray-800 dark:text-white dark:color-scheme-dark transition-colors" 
                     />
                 </div>
 
@@ -64,15 +61,14 @@ const ExportTransaction = () => {
                         type="date" 
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="p-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent 
-                                   bg-white dark:bg-slate-700 dark:text-white dark:color-scheme-dark"
+                        className="p-2 border border-gray-300 dark:border-gray-700 rounded focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent 
+                                   bg-white dark:bg-gray-800 dark:text-white dark:color-scheme-dark transition-colors"
                     />
                 </div>
 
                 <button 
                     onClick={handleDownload} 
                     disabled={loading}
-                    // 5. BUTTON: Updated to use brand colors
                     className={`w-full py-2 px-4 rounded font-semibold transition duration-200 
                         ${loading 
                             ? 'bg-blue-300 dark:bg-blue-900 cursor-not-allowed text-white' 

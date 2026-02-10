@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Your Brand Color (Indigo/Blue)
         brand: {
           50: '#eef2ff',
           100: '#e0e7ff',
@@ -15,11 +16,13 @@ export default {
           600: '#4f46e5',
           700: '#4338ca',
         },
+        // NEW "True Black" Theme
         dark: {
-          bg: '#0f172a',
-          card: '#1e293b',
-          text: '#f8fafc',
-          muted: '#94a3b8'
+          bg: '#000000',      // Pure Black background
+          card: '#121212',    // Very dark gray (standard for dark mode cards)
+          text: '#ffffff',    // Pure White text for maximum contrast
+          muted: '#a1a1aa',   // Light Gray for secondary text
+          border: '#27272a'   // Dark Gray for borders
         }
       },
     },

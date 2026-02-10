@@ -15,4 +15,10 @@ public class StatsDTO {
         this.totalExpense = BigDecimal.ZERO;
         this.balance = BigDecimal.ZERO;
     }
+
+    public StatsDTO(BigDecimal totalIncome, BigDecimal totalExpense, BigDecimal balance) {
+        this.totalIncome = totalIncome;
+        this.totalExpense = totalExpense;
+        this.balance = balance;
+    }
 }
