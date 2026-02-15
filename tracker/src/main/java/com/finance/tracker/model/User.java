@@ -2,9 +2,13 @@ package com.finance.tracker.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Entity
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "users")
 public class User {
 
@@ -20,4 +24,7 @@ public class User {
 
     @Column(name = "full_name")
     private String fullName;
+
+    @Column(nullable = false)
+    private String role;
 }

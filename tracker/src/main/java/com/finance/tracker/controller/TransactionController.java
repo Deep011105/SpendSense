@@ -9,7 +9,6 @@ import com.finance.tracker.repo.TransactionRepo; // Import this
 import com.finance.tracker.repo.UserRepo;
 import com.finance.tracker.service.CsvImportService;
 import com.finance.tracker.service.TransactionService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable; // CORRECT IMPORT
