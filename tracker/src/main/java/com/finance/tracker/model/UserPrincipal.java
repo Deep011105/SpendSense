@@ -1,12 +1,12 @@
-package com.finance.tracker.security; // NOTE: Better to keep this in 'security', not 'model'
+package com.finance.tracker.model; // NOTE: Better to keep this in 'security', not 'model'
 
-import com.finance.tracker.model.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 
 public class UserPrincipal implements UserDetails {
 
@@ -20,8 +20,16 @@ public class UserPrincipal implements UserDetails {
     // 2. Return the correct Role/Authority
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Wraps the role string (e.g., "ROLE_USER") into a GrantedAuthority
-        return Collections.singleton(new SimpleGrantedAuthority(user.getRole()));
+        // 1. Get the role from your Entity (e.g., "USER" or "ADMIN")
+        String roleName = user.getRole();
+
+        // 2. Ensure it starts with "ROLE_" (Spring Security expects this prefix!)
+        if (!roleName.startsWith("ROLE_")) {
+            roleName = "ROLE_" + roleName;
+        }
+
+        // 3. Return it as an authority
+        return List.of(new SimpleGrantedAuthority(roleName));
     }
 
     // 3. Return the Password hash from DB

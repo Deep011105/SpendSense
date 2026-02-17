@@ -13,6 +13,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -24,6 +26,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     @Autowired
     private UserDetailsService userDetailsService;
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,23 +43,26 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 // 3. Get the User's Email (Username) from the token
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);
 
-                // 4. Load the User details from the Database
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                if(SecurityContextHolder.getContext().getAuthentication() == null) {
 
-                // 5. Create an Authentication Token (Standard Spring Security Object)
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails,
-                                null,
-                                userDetails.getAuthorities());
+                    // 4. Load the User details from the Database
+                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    // 5. Create an Authentication Token (Standard Spring Security Object)
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities());
 
-                // 6. Set the User as "Logged In" for this request
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+                    // 6. Set the User as "Logged In" for this request
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             }
         } catch (Exception e) {
-            System.err.println("Cannot set user authentication: " + e);
+            logger.error("Cannot set user authentication", e);
         }
 
         // 7. Continue the filter chain

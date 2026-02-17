@@ -3,60 +3,83 @@ package com.finance.tracker.security;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
+
 @Component
 public class JwtUtils {
 
-    // 1. CONSTANTS
-    // In production, keep this in application.properties!
-    // Must be at least 32 characters long for HS256
-    private static final String SECRET_KEY = "MySuperSecretKeyForFinanceTrackerAppWhichIsVerySecure";
+    private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
-    // Token validity: 24 Hours (in milliseconds)
-    private static final int EXPIRATION_MS = 86400000;
+    // Injecting values from application.properties
+    @Value("${jwt.secret}")
+    private String jwtSecret;
 
-    // 2. GENERATE TOKEN (Creation)
+    @Value("${jwt.expirationMs}")
+    private int jwtExpirationMs;
+
+    // 1. GENERATE TOKEN
     public String generateToken(UserDetails userDetails) {
         return Jwts.builder()
-                .setSubject(userDetails.getUsername()) // This stores the Email inside the token
+                .setSubject(userDetails.getUsername())
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + EXPIRATION_MS))
+                .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // 3. GET KEY (Helper)
+    // 2. GET KEY (Optimized)
     private Key key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(
-                java.util.Base64.getEncoder().encodeToString(SECRET_KEY.getBytes())
-        ));
+        // OPTION A: If your secret in properties is a plain text string
+        // Use this if your secret is like: "mySuperSecretKey123..."
+        // return Keys.hmacShaKeyFor(jwtSecret.getBytes());
+
+        // OPTION B: If your secret in properties is Base64 encoded (Recommended)
+        // Use this if you generated the key I gave you earlier
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
     }
 
-    // 4. EXTRACT EMAIL (Reading)
+    // 3. EXTRACT USERNAME
     public String getUserNameFromJwtToken(String token) {
-        return Jwts.parserBuilder().setSigningKey(key()).build()
-                .parseClaimsJws(token).getBody().getSubject();
+        return Jwts.parserBuilder()
+                .setSigningKey(key())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
     }
 
-    // 5. VALIDATE TOKEN (Security Check)
+    // 4. VALIDATE TOKEN
     public boolean validateJwtToken(String authToken) {
         try {
-            Jwts.parserBuilder().setSigningKey(key()).build().parseClaimsJws(authToken);
+            Jwts.parserBuilder()
+                    .setSigningKey(key())
+                    .build()
+                    .parseClaimsJws(authToken);
             return true;
+
         } catch (MalformedJwtException e) {
-            System.err.println("Invalid JWT token: " + e.getMessage());
+            logger.error("Invalid JWT token", e);
         } catch (ExpiredJwtException e) {
-            System.err.println("JWT token is expired: " + e.getMessage());
+            logger.error("JWT token is expired", e);
         } catch (UnsupportedJwtException e) {
-            System.err.println("JWT token is unsupported: " + e.getMessage());
+            logger.error("JWT token is unsupported", e);
         } catch (IllegalArgumentException e) {
-            System.err.println("JWT claims string is empty: " + e.getMessage());
+            logger.error("JWT claims string is empty", e);
+        } catch (SignatureException e) {
+            logger.error("Invalid JWT signature", e);
         }
+
         return false;
     }
+
 }
