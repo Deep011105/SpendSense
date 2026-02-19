@@ -5,58 +5,67 @@ import {
   PieChart, Pie, Cell 
 } from 'recharts';
 
-// --- CUSTOM TOOLTIP COMPONENT ---
-// This ensures the tooltip looks good in Dark Mode (White text on Dark Card)
+// --- PREMIUM CUSTOM TOOLTIP ---
+// Upgraded with glassmorphism and support for multiple data points (Income & Expense)
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white dark:bg-dark-card border border-gray-100 dark:border-gray-800 p-3 rounded-lg shadow-xl">
-        <p className="font-bold text-gray-800 dark:text-white mb-1">{label}</p>
-        <p className="text-brand-600 dark:text-brand-400 font-medium">
-          ${payload[0].value.toFixed(2)}
-        </p>
+      <div className="bg-white/90 dark:bg-[#18181b]/90 backdrop-blur-md border border-gray-200 dark:border-white/10 p-4 rounded-xl shadow-2xl">
+        <p className="font-bold text-gray-900 dark:text-white mb-2">{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2 mb-1 text-sm">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
+            <p className="text-gray-600 dark:text-gray-300">
+              <span className="font-medium">{entry.name}:</span> <span className="text-gray-900 dark:text-white font-semibold">${entry.value.toFixed(2)}</span>
+            </p>
+          </div>
+        ))}
       </div>
     );
   }
   return null;
 };
 
-export default function DashboardCharts() {
-  const [barData, setBarData] = useState([]); // For Monthly Trends
-  const [pieData, setPieData] = useState([]); // For Expense Categories
+// 1. ADDED refreshTrigger TO PROPS
+export default function DashboardCharts({ refreshTrigger }) {
+  const [barData, setBarData] = useState([]); 
+  const [pieData, setPieData] = useState([]); 
 
   // --- FETCH DATA FROM BACKEND ---
   useEffect(() => {
-    // 1. Fetch Monthly Trends (Income vs Expense)
+    // 1. Fetch Monthly Trends
     axios.get('http://localhost:8080/api/transactions/stats/monthly')
       .then(res => setBarData(res.data))
       .catch(err => {
         console.error("Error fetching bar chart data:", err);
-        // Fallback/Demo data so the chart doesn't look broken if backend is empty
         setBarData([
             { month: 'Jan', income: 0, expense: 0 },
             { month: 'Feb', income: 0, expense: 0 }
         ]);
       });
 
-    // 2. Fetch Expense Breakdown (Pie Chart)
+    // 2. Fetch Expense Breakdown
     axios.get('http://localhost:8080/api/transactions/stats/chart')
       .then(res => setPieData(res.data))
       .catch(err => console.error("Error fetching pie chart data:", err));
-  }, []);
+      
+  // 2. ADDED refreshTrigger TO DEPENDENCIES
+  }, [refreshTrigger]); 
 
-  const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+  // Modern, vibrant color palette
+  const COLORS = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       
       {/* --- CHART 1: MONTHLY TRENDS (Bar Chart) --- */}
-      <div className="lg:col-span-2 bg-white dark:bg-dark-card p-6 rounded-xl shadow border border-gray-100 dark:border-gray-800 transition-colors">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Financial Trends</h3>
+      {/* 3. GLASSMORPHISM CONTAINER UPGRADE */}
+      <div className="lg:col-span-2 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 transition-colors">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight mb-6">Financial Trends</h3>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" strokeOpacity={0.2} />
+            <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#374151" strokeOpacity={0.15} />
               <XAxis 
                 dataKey="month" 
                 axisLine={false} 
@@ -68,21 +77,23 @@ export default function DashboardCharts() {
                 axisLine={false} 
                 tickLine={false} 
                 tick={{fill: '#9CA3AF', fontSize: 12}} 
+                tickFormatter={(value) => `$${value}`}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{fill: 'transparent'}} />
-              <Legend wrapperStyle={{ paddingTop: '20px' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{fill: 'rgba(156, 163, 175, 0.1)'}} />
+              <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
               
-              <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name="Income" barSize={30} />
-              <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} name="Expense" barSize={30} />
+              <Bar dataKey="income" fill="#10B981" radius={[4, 4, 0, 0]} name="Income" barSize={24} />
+              <Bar dataKey="expense" fill="#EF4444" radius={[4, 4, 0, 0]} name="Expense" barSize={24} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* --- CHART 2: EXPENSE BREAKDOWN (Pie Chart) --- */}
-      <div className="bg-white dark:bg-dark-card p-6 rounded-xl shadow border border-gray-100 dark:border-gray-800 transition-colors">
-        <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Where money goes?</h3>
-        <div className="h-72 w-full">
+      {/* 4. GLASSMORPHISM CONTAINER UPGRADE */}
+      <div className="bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 transition-colors flex flex-col">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight mb-2">Where money goes</h3>
+        <div className="flex-1 w-full min-h-[18rem]">
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -90,11 +101,11 @@ export default function DashboardCharts() {
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={70}
+                  outerRadius={90}
                   paddingAngle={5}
-                  dataKey="totalAmount"  // Matches your DTO
-                  nameKey="categoryName" // Matches your DTO
+                  dataKey="totalAmount" 
+                  nameKey="categoryName" 
                   stroke="none"
                 >
                   {pieData.map((entry, index) => (
@@ -106,8 +117,8 @@ export default function DashboardCharts() {
               </PieChart>
             </ResponsiveContainer>
           ) : (
-             <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400">
-                <p>No expense data yet</p>
+             <div className="flex h-full items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+                <p>No expense data yet.</p>
              </div>
           )}
         </div>

@@ -1,178 +1,189 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Trash2, ChevronLeft, ChevronRight, Loader } from 'lucide-react';
+import { Trash2, ChevronLeft, ChevronRight, Loader2, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function TransactionTable({ filters }) {
+// 1. ADDED refreshTrigger TO PROPS
+export default function TransactionTable({ filters, refreshTrigger }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   
   // PAGINATION STATE
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const pageSize = 10;
+  const pageSize = 8; // Slightly smaller page size to fit the aesthetic better
 
+  // 2. TRIGGER UPDATE: Added refreshTrigger to dependencies
   useEffect(() => {
     fetchTransactions(currentPage);
-  }, [currentPage, filters]);
+  }, [currentPage, filters, refreshTrigger]);
 
   const fetchTransactions = async (page) => {
     setLoading(true);
     try {
-      // Pass the startDate and endDate to the API
       const response = await axios.get(`http://localhost:8080/api/transactions`, {
           params: {
               page: page,
               size: pageSize,
-              startDate: filters.startDate, // <--- Use Filter
-              endDate: filters.endDate     // <--- Use Filter
+              startDate: filters.startDate, 
+              endDate: filters.endDate     
           }
       });
       
-      setTransactions(response.data.content);
-      setTotalPages(response.data.totalPages);
-      setLoading(false);
+      setTransactions(response.data.content || []);
+      setTotalPages(response.data.totalPages || 0);
     } catch (error) {
       console.error(error);
+      toast.error("Failed to load transactions.");
+    } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id) => {
-    // We keep window.confirm for safety, but replace the success message
-    if (window.confirm("Are you sure you want to delete this?")) {
+    if (window.confirm("Are you sure you want to delete this transaction?")) {
+      const toastId = toast.loading("Deleting...");
       try {
         await axios.delete(`http://localhost:8080/api/transactions/${id}`);
-        toast.success("Transaction deleted!"); // <--- Nice popup
+        toast.success("Transaction deleted!", { id: toastId }); 
         fetchTransactions(currentPage);
       } catch (error) {
-        toast.error("Failed to delete."); // <--- Nice popup
+        toast.error("Failed to delete.", { id: toastId }); 
       }
     }
   };
 
-  if (loading) {
-    return (
-        <div className="flex justify-center items-center py-10 text-gray-500 dark:text-gray-400">
-            <Loader className="w-6 h-6 animate-spin mr-2" />
-            Loading transactions...
-        </div>
-    );
-  }
-
   return (
-    <div>
+    <div className="flex flex-col h-full justify-between">
       <div className="overflow-x-auto">
-        {/* 1. TABLE DIVIDER: Changed dark:divide-gray-700 -> dark:divide-gray-800 */}
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+        <table className="min-w-full text-left border-collapse">
           
-          {/* 2. HEADER BG: Changed slate-700/50 -> gray-900 (Neutral Dark) */}
-          <thead className="bg-gray-50 dark:bg-gray-900">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+          {/* 3. PREMIUM HEADER: Glassy, no heavy backgrounds, uppercase tracking */}
+          <thead>
+            <tr className="border-b border-gray-200 dark:border-white/5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <th className="px-6 py-4 whitespace-nowrap">Date</th>
+              <th className="px-6 py-4">Description</th>
+              <th className="px-6 py-4 whitespace-nowrap">Category</th>
+              <th className="px-6 py-4 text-right whitespace-nowrap">Amount</th>
+              <th className="px-6 py-4 text-center whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           
-          <tbody className="bg-white dark:bg-dark-card divide-y divide-gray-200 dark:divide-gray-800">
-            {transactions.map((transaction) => (
-              <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {transaction.date}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                  {transaction.description}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {/* 3. BADGE: Changed dark:bg-blue-900/50 -> dark:bg-blue-500/20 (Subtler) */}
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300">
-                    {transaction.category?.name || 'Uncategorized'}
-                  </span>
-                </td>
-                <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold ${
-                  transaction.type === 'INCOME' 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {transaction.type === 'INCOME' ? '+' : '-'}${transaction.amount.toFixed(2)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button 
-                    onClick={() => handleDelete(transaction.id)}
-                    className="text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
+          <tbody className="divide-y divide-gray-100 dark:divide-white/5">
+            {loading ? (
+               // SKELETON LOADER
+               <tr>
+                 <td colSpan="5" className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                      <Loader2 className="w-8 h-8 animate-spin mb-2 text-brand-500" />
+                      <p className="text-sm font-medium">Loading ledger...</p>
+                    </div>
+                 </td>
+               </tr>
+            ) : transactions.length === 0 ? (
+               // EMPTY STATE
+               <tr>
+                 <td colSpan="5" className="px-6 py-16 text-center">
+                    <div className="flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                      <div className="bg-gray-100 dark:bg-white/5 p-4 rounded-full mb-3">
+                        <Receipt className="w-8 h-8 opacity-50" />
+                      </div>
+                      <p className="text-base font-medium text-gray-600 dark:text-gray-300">No transactions found</p>
+                      <p className="text-sm mt-1">Try adjusting your date filters or add a new entry.</p>
+                    </div>
+                 </td>
+               </tr>
+            ) : (
+              transactions.map((transaction) => (
+                // 4. GLASSY ROWS: Subtle hover effect without turning completely gray
+                <tr key={transaction.id} className="hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-white">
+                    {transaction.description}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {/* 5. SLEEK BADGE: Rounded full, subtle transparency */}
+                    <span className="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300 border border-gray-200 dark:border-white/5">
+                      {transaction.category?.name || transaction.category || 'Uncategorized'}
+                    </span>
+                  </td>
+                  <td className={`px-6 py-4 whitespace-nowrap text-right text-sm font-bold tracking-tight ${
+                    transaction.type === 'INCOME' 
+                      ? 'text-emerald-600 dark:text-emerald-400' 
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {transaction.type === 'INCOME' ? '+' : '-'}${transaction.amount.toFixed(2)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                    {/* 6. MODERN DELETE BUTTON: Fades in/out on row hover, circular background */}
+                    <button 
+                      onClick={() => handleDelete(transaction.id)}
+                      className="p-2 rounded-full text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 opacity-50 group-hover:opacity-100 transition-all active:scale-95 mx-auto flex"
+                      title="Delete Transaction"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* --- PAGINATION CONTROLS --- */}
-      {/* 4. PAGINATION BG & BORDER: Neutral Grays */}
-      <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-dark-card px-4 py-3 sm:px-6">
-        
-        {/* Mobile View */}
-        <div className="flex flex-1 justify-between sm:hidden">
-          <button
-            onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-            disabled={currentPage === 0}
-            className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-          >
-            Previous
-          </button>
-          <button
-            onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-            disabled={currentPage === totalPages - 1}
-            className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-          >
-            Next
-          </button>
-        </div>
+      {/* 7. GLASSY PAGINATION: Blends perfectly with the bottom of the card */}
+      {!loading && transactions.length > 0 && (
+        <div className="flex items-center justify-between border-t border-gray-200 dark:border-white/5 px-6 py-4">
+          <div className="flex flex-1 justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="ml-3 px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-30 transition-colors"
+            >
+              Next
+            </button>
+          </div>
 
-        {/* Desktop View */}
-        <div className="hidden sm:flex flex-1 items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-700 dark:text-gray-400">
-              Page <span className="font-medium">{currentPage + 1}</span> of <span className="font-medium">{totalPages}</span>
-            </p>
-          </div>
-          <div>
-            <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                disabled={currentPage === 0}
-                // 5. BUTTON STYLES: dark:ring-gray-700, dark:hover:bg-gray-800
-                className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 focus:z-20 focus:outline-offset-0"
-              >
-                <span className="sr-only">Previous</span>
-                <ChevronLeft className="h-5 w-5" aria-hidden="true" />
-              </button>
-              
-              <button
-                aria-current="page"
-                className="relative z-10 inline-flex items-center bg-brand-600 px-4 py-2 text-sm font-semibold text-white focus:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-              >
-                {currentPage + 1}
-              </button>
-              
-              <button
-                onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-                disabled={currentPage === totalPages - 1}
-                className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 focus:z-20 focus:outline-offset-0"
-              >
-                <span className="sr-only">Next</span>
-                <ChevronRight className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </nav>
+          <div className="hidden sm:flex flex-1 items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Page <span className="font-semibold text-gray-900 dark:text-white">{currentPage + 1}</span> of <span className="font-semibold text-gray-900 dark:text-white">{totalPages || 1}</span>
+              </p>
+            </div>
+            <div>
+              <nav className="inline-flex gap-2" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                  disabled={currentPage === 0}
+                  className="p-2 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 dark:hover:border-brand-500/30 dark:hover:text-brand-400 dark:hover:bg-brand-500/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-white/10 transition-all"
+                >
+                  <span className="sr-only">Previous</span>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={currentPage === totalPages - 1}
+                  className="p-2 rounded-xl border border-gray-200 dark:border-white/10 text-gray-500 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50 dark:hover:border-brand-500/30 dark:hover:text-brand-400 dark:hover:bg-brand-500/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-white/10 transition-all"
+                >
+                  <span className="sr-only">Next</span>
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </nav>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
