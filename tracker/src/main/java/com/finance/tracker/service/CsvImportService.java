@@ -3,9 +3,8 @@ package com.finance.tracker.service;
 import com.finance.tracker.model.Category;
 import com.finance.tracker.model.Transaction;
 import com.finance.tracker.model.User;
-import com.finance.tracker.repo.CategoryRepo;    // Correct Package
-import com.finance.tracker.repo.TransactionRepo; // Assuming this follows the same naming
-import com.finance.tracker.repo.UserRepo;        // Assuming this follows the same naming
+import com.finance.tracker.repo.CategoryRepo;
+import com.finance.tracker.repo.TransactionRepo;
 import com.opencsv.CSVReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -21,27 +20,26 @@ import java.util.Locale;
 public class CsvImportService {
 
     @Autowired
-    private TransactionRepo transactionRepo; // Renamed to match your naming convention
+    private TransactionRepo transactionRepo;
 
     @Autowired
     private CategoryRepo categoryRepo;
 
-    @Autowired
-    private UserRepo userRepo;
+    // Notice: We don't even need UserRepo injected here anymore!
 
-    public void saveTransactionsFromCsv(MultipartFile file) throws Exception {
-        // 1. Fetch Default User
-        User defaultUser = userRepo.findById(1L)
-                .orElseThrow(() -> new RuntimeException("User ID 1 not found."));
+    // --- 1. THE FIX: Accept the User object from the Controller ---
+    public void saveTransactionsFromCsv(MultipartFile file, User user) throws Exception {
+
+        // (Removed the hardcoded userRepo.findById(1L) logic)
 
         try (CSVReader reader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
             List<String[]> rows = reader.readAll();
 
-            // 2. Iterate rows (Skip header at index 0)
+            // Iterate rows (Skip header at index 0)
             for (int i = 1; i < rows.size(); i++) {
                 String[] row = rows.get(i);
 
-                // --- SAFETY CHECK: Skip empty or malformed rows ---
+                // SAFETY CHECK: Skip empty or malformed rows
                 if (row.length < 3) {
                     continue;
                 }
@@ -60,15 +58,16 @@ public class CsvImportService {
                     transaction.setDate(LocalDate.parse(dateStr)); // Format must be YYYY-MM-DD
                     transaction.setDescription(description);
                     transaction.setAmount(new BigDecimal(amountStr));
-                    transaction.setUser(defaultUser);
 
-                    // 3. Smart Categorization
+                    // --- 2. THE FIX: Attach the securely authenticated user! ---
+                    transaction.setUser(user);
+
+                    // Smart Categorization
                     assignCategoryAndType(transaction, description);
 
                     transactionRepo.save(transaction);
                 } catch (Exception e) {
                     System.err.println("Skipping invalid row " + i + ": " + e.getMessage());
-                    // We catch errors here so one bad row doesn't stop the whole import
                 }
             }
         }
@@ -79,7 +78,7 @@ public class CsvImportService {
         String categoryName = "General";
         String type = "EXPENSE";
 
-        // 1. Determine Category Name & Type (This changes the variable)
+        // Determine Category Name & Type
         if (lowerDesc.contains("salary") || lowerDesc.contains("credit")) {
             type = "INCOME";
             categoryName = "Salary";
@@ -93,14 +92,12 @@ public class CsvImportService {
 
         t.setType(type);
 
-        // --- THE FIX IS HERE ---
-        // We create a "final" copy of the variable to satisfy the Lambda rule
         final String finalCategoryName = categoryName;
 
         Category category = categoryRepo.findByName(finalCategoryName)
                 .orElseGet(() -> {
                     Category newCat = new Category();
-                    newCat.setName(finalCategoryName); // Use the FINAL copy here
+                    newCat.setName(finalCategoryName);
                     return categoryRepo.save(newCat);
                 });
 

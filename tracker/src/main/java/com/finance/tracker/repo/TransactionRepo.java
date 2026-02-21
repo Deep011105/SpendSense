@@ -36,7 +36,7 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
     List<CategoryStatsDTO> findExpenseStatsByUser(User user);
 
     // 1. For the Table (Pagination + Filter)
-    Page<Transaction> findByDateBetween(LocalDate startDate, LocalDate endDate, Pageable pageable);
+    Page<Transaction> findByUserAndDateBetween(User user, LocalDate startDate, LocalDate endDate, Pageable pageable);
 
     // 2. NEW: For the Stats (Summing Income/Expense in a range)
     @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.user = :user AND t.type = :type AND t.date BETWEEN :startDate AND :endDate")
@@ -46,4 +46,6 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );
+
+    List<Transaction> findByUserEmail(String userEmail);
 }

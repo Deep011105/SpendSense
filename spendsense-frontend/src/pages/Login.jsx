@@ -19,36 +19,40 @@ export default function Login() {
     const toastId = toast.loading("Verifying credentials...");
 
     try {
-      // NOTE: Update this URL to match your Spring Boot Security login endpoint
       const response = await axios.post('http://localhost:8080/api/auth/login', credentials);
       
-      // If using JWTs, save the token to local storage so other axios calls can use it
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
+        localStorage.setItem('userTier', response.data.tier || 'BASIC'); 
+        localStorage.setItem('userEmail', response.data.email);
       }
 
-      toast.success("Welcome back!", { id: toastId });
+      // 1. Show the success message and force a 2-second duration
+      toast.success("Welcome back!", { id: toastId, duration: 3000 });
       
-      // Navigate the user directly to the dashboard
-      navigate('/dashboard');
+      // 2. THE MAGIC FIX: Wait 1 second (1000ms) BEFORE navigating away!
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
+
     } catch (error) {
       console.error("Login failed:", error);
       toast.error("Invalid email or password.", { id: toastId });
-    } finally {
-      setLoading(false);
-    }
+      setLoading(false); // Only stop loading if it fails, so the button stays spinning during the 1s success delay
+    } 
+    // Removed the 'finally' block so the button doesn't awkwardly re-enable while we wait to navigate
   };
 
   return (
     <div className="min-h-screen relative flex items-center justify-center bg-[#fafafa] dark:bg-black transition-colors duration-300 font-sans selection:bg-brand-500/30 px-4 sm:px-6 lg:px-8">
       
-      {/* 1. AMBIENT BACKGROUND GLOW: Matches the Landing Page perfectly */}
+      {/* AMBIENT BACKGROUND GLOW */}
       <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
         <div className="absolute top-[-10%] left-[-10%] w-[40rem] h-[40rem] bg-brand-500/20 dark:bg-brand-600/20 rounded-full blur-[120px]"></div>
         <div className="absolute bottom-[-10%] right-[-10%] w-[40rem] h-[40rem] bg-purple-500/20 dark:bg-purple-600/20 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* 2. BACK TO HOME LINK */}
+      {/* BACK TO HOME LINK */}
       <Link 
         to="/" 
         className="absolute top-8 left-8 flex items-center gap-2 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors z-20 group"
@@ -57,7 +61,7 @@ export default function Login() {
         Back to Home
       </Link>
 
-      {/* 3. GLASSMORPHISM LOGIN CARD */}
+      {/* GLASSMORPHISM LOGIN CARD */}
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 dark:border-white/10 p-8 sm:p-10 transition-colors duration-300">
           
@@ -146,9 +150,9 @@ export default function Login() {
           {/* Footer */}
           <p className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
             Don't have an account?{' '}
-            <a href="/signup" className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
+            <Link to="/signup" className="font-semibold text-brand-600 hover:text-brand-500 dark:text-brand-400 dark:hover:text-brand-300 transition-colors">
               Sign up for free
-            </a>
+            </Link>
           </p>
 
         </div>

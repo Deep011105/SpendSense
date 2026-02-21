@@ -1,22 +1,28 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown, Loader2, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const ExportTransaction = () => {
+// 1. ADDED PROPS: userTier and onRequirePro
+const ExportTransaction = ({ userTier = 'BASIC', onRequirePro }) => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [loading, setLoading] = useState(false);
 
     const handleDownload = async () => {
+        // 2. THE PAYWALL INTERCEPTOR
+        // If they are a basic user, stop the function and trigger the popup
+        if (userTier === 'BASIC') {
+            onRequirePro();
+            return;
+        }
+
         if(!startDate || !endDate) {
-            // Replaced blocky alerts with sleek toast notifications
             toast.error("Please select both start and end dates.");
             return;
         }
 
         setLoading(true);
-        // Optional: A loading toast so the user knows it's working
         const toastId = toast.loading("Preparing your export...");
 
         try {
@@ -33,10 +39,7 @@ const ExportTransaction = () => {
             link.click();
             link.remove();
             
-            // Success toast!
             toast.success("Export successful!", { id: toastId });
-            
-            // Clear inputs after successful download
             setStartDate('');
             setEndDate('');
         } catch (error) {
@@ -48,21 +51,25 @@ const ExportTransaction = () => {
     };
 
     return (
-        // 1. GLASSMORPHISM CONTAINER
         <div className="bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 w-full transition-all duration-300">
             
-            {/* 2. PREMIUM HEADER with Icon */}
+            {/* PREMIUM HEADER */}
             <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-brand-100 dark:bg-brand-500/20 rounded-lg text-brand-600 dark:text-brand-400">
                     <FileDown className="w-5 h-5" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-                    Export Data
-                </h3>
+                <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
+                        Export Data
+                    </h3>
+                    {/* 3. THE PRO BADGE */}
+                    <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white bg-gradient-to-r from-amber-400 to-orange-500 rounded-full shadow-md shadow-orange-500/20">
+                        Pro
+                    </span>
+                </div>
             </div>
             
             <div className="flex flex-col gap-4">
-                {/* 3. UPGRADED INPUTS: Match the DateFilter styling exactly */}
                 <div className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">From Date</label>
                     <input 
@@ -83,20 +90,28 @@ const ExportTransaction = () => {
                     />
                 </div>
 
-                {/* 4. PREMIUM BUTTON with Spinners and subtle hover states */}
+                {/* 4. DYNAMIC BUTTON STYLING */}
+                {/* Glows gold if locked (Basic), standard blue if unlocked (Premium) */}
                 <button 
                     onClick={handleDownload} 
                     disabled={loading}
                     className={`mt-2 flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl font-semibold transition-all duration-200 active:scale-95
                         ${loading 
                             ? 'bg-gray-100 dark:bg-white/5 cursor-not-allowed text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-white/5' 
-                            : 'bg-brand-600 hover:bg-brand-700 text-white shadow-lg hover:shadow-brand-500/25 border border-transparent'
+                            : userTier === 'BASIC'
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg hover:shadow-orange-500/25 border border-transparent'
+                                : 'bg-brand-600 hover:bg-brand-700 text-white shadow-lg hover:shadow-brand-500/25 border border-transparent'
                         }`}
                 >
                     {loading ? (
                         <>
                             <Loader2 className="w-5 h-5 animate-spin" />
                             Exporting...
+                        </>
+                    ) : userTier === 'BASIC' ? (
+                        <>
+                            <Sparkles className="w-4 h-4" />
+                            Unlock Export
                         </>
                     ) : (
                         'Download CSV'

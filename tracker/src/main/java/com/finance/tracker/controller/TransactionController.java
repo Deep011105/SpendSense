@@ -5,18 +5,19 @@ import com.finance.tracker.dto.StatsDTO;
 import com.finance.tracker.dto.TransactionDTO;
 import com.finance.tracker.model.Transaction;
 import com.finance.tracker.model.User;
-import com.finance.tracker.repo.TransactionRepo; // Import this
+import com.finance.tracker.repo.TransactionRepo;
 import com.finance.tracker.repo.UserRepo;
 import com.finance.tracker.service.CsvImportService;
 import com.finance.tracker.service.TransactionService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable; // CORRECT IMPORT
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder; // NEW IMPORT
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -30,10 +31,9 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final UserRepo userRepository;
-    private final TransactionRepo transactionRepo; // Added Repo
-    private final CsvImportService csvImportService; // Added Service
+    private final TransactionRepo transactionRepo;
+    private final CsvImportService csvImportService;
 
-    // Constructor Injection for all dependencies
     public TransactionController(TransactionService transactionService,
                                  UserRepo userRepository,
                                  TransactionRepo transactionRepo,
@@ -44,7 +44,15 @@ public class TransactionController {
         this.csvImportService = csvImportService;
     }
 
-    // --- 1. THE MASTER GET METHOD (Merged Pagination + Date Filtering) ---
+    // --- THE MAGIC HELPER METHOD ---
+    // This grabs the email from the JWT and finds the correct User in the database
+    private User getAuthenticatedUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Authenticated user not found in database"));
+    }
+
+    // --- 1. THE MASTER GET METHOD ---
     @GetMapping
     public Page<Transaction> getAllTransactions(
             @RequestParam(defaultValue = "0") int page,
@@ -52,37 +60,28 @@ public class TransactionController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
 
-        // 1. Setup Pagination (Sort by Date Descending)
+        User user = getAuthenticatedUser(); // 1. Get logged-in user
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending());
 
-        // 2. Handle Date Defaults (If frontend sends null, default to last 30 days)
-        LocalDate end = (endDate != null && !endDate.isEmpty())
-                ? LocalDate.parse(endDate)
-                : LocalDate.now();
+        LocalDate end = (endDate != null && !endDate.isEmpty()) ? LocalDate.parse(endDate) : LocalDate.now();
+        LocalDate start = (startDate != null && !startDate.isEmpty()) ? LocalDate.parse(startDate) : LocalDate.now().minusDays(30);
 
-        LocalDate start = (startDate != null && !startDate.isEmpty())
-                ? LocalDate.parse(startDate)
-                : LocalDate.now().minusDays(30);
-
-        // 3. Fetch from Repo
-        // Note: For now this fetches ALL users' data in that range.
-        // We will fix this to be 'findByUserAndDateBetween' in the Security phase.
-        return transactionRepo.findByDateBetween(start, end, pageable);
+        // 2. Fetch ONLY this user's data!
+        return transactionRepo.findByUserAndDateBetween(user, start, end, pageable);
     }
 
     // --- 2. ADD TRANSACTION ---
     @PostMapping
     public Transaction addTransaction(@RequestBody TransactionDTO transactionDTO) {
-        User user = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(); // No more hardcoded 1L!
         return transactionService.createTransaction(transactionDTO, user);
     }
 
     // --- 3. DELETE TRANSACTION ---
     @DeleteMapping("/{id}")
     public void deleteTransaction(@PathVariable Long id) {
-        User user = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser();
         transactionService.deleteTransaction(id, user);
     }
 
@@ -92,9 +91,8 @@ public class TransactionController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate
     ) {
-        User user = userRepository.findById(1L).orElseThrow();
+        User user = getAuthenticatedUser();
 
-        // Default to Last 30 Days if no date provided
         LocalDate end = (endDate != null) ? LocalDate.parse(endDate) : LocalDate.now();
         LocalDate start = (startDate != null) ? LocalDate.parse(startDate) : LocalDate.now().minusDays(30);
 
@@ -104,7 +102,7 @@ public class TransactionController {
     // --- 5. CHART STATS ---
     @GetMapping("/stats/chart")
     public List<CategoryStatsDTO> getChartStats() {
-        User user = userRepository.findById(1L).orElseThrow();
+        User user = getAuthenticatedUser();
         return transactionService.getExpenseStats(user);
     }
 
@@ -114,8 +112,7 @@ public class TransactionController {
             @RequestParam String startDate,
             @RequestParam String endDate
     ) {
-        User user = userRepository.findById(1L)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser();
 
         LocalDate start = LocalDate.parse(startDate);
         LocalDate end = LocalDate.parse(endDate);
@@ -145,7 +142,9 @@ public class TransactionController {
     @PostMapping("/import")
     public ResponseEntity<String> importTransactions(@RequestParam("file") MultipartFile file) {
         try {
-            csvImportService.saveTransactionsFromCsv(file);
+            User user = getAuthenticatedUser();
+            // Note: I added 'user' to this service call! You will need to update the service.
+            csvImportService.saveTransactionsFromCsv(file, user);
             return ResponseEntity.ok("Transactions imported successfully!");
         } catch (Exception e) {
             e.printStackTrace();
@@ -155,7 +154,7 @@ public class TransactionController {
 
     @GetMapping("/stats/monthly")
     public List<com.finance.tracker.dto.MonthlyStatsDTO> getMonthlyStats() {
-        User user = userRepository.findById(1L).orElseThrow();
+        User user = getAuthenticatedUser();
         return transactionService.getMonthlyStats(user);
     }
 }
