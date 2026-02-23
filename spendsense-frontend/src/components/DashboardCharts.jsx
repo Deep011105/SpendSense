@@ -6,7 +6,6 @@ import {
 } from 'recharts';
 
 // --- PREMIUM CUSTOM TOOLTIP ---
-// Upgraded with glassmorphism and support for multiple data points (Income & Expense)
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
@@ -16,7 +15,8 @@ const CustomTooltip = ({ active, payload, label }) => {
           <div key={index} className="flex items-center gap-2 mb-1 text-sm">
             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }}></div>
             <p className="text-gray-600 dark:text-gray-300">
-              <span className="font-medium">{entry.name}:</span> <span className="text-gray-900 dark:text-white font-semibold">${entry.value.toFixed(2)}</span>
+              {/* THE FIX: Force it to be a Number before calling toFixed! */}
+              <span className="font-medium">{entry.name}:</span> <span className="text-gray-900 dark:text-white font-semibold">${Number(entry.value).toFixed(2)}</span>
             </p>
           </div>
         ))}
@@ -26,15 +26,20 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// 1. ADDED refreshTrigger TO PROPS
-export default function DashboardCharts({ refreshTrigger }) {
+// --- THE FIX: Added 'filters' to the props ---
+export default function DashboardCharts({ refreshTrigger, filters }) {
   const [barData, setBarData] = useState([]); 
   const [pieData, setPieData] = useState([]); 
 
-  // --- FETCH DATA FROM BACKEND ---
   useEffect(() => {
-    // 1. Fetch Monthly Trends
-    axios.get('http://localhost:8080/api/transactions/stats/monthly')
+    // 1. Prepare the date parameters safely
+    const params = filters ? {
+      startDate: filters.startDate,
+      endDate: filters.endDate
+    } : {};
+
+    // 2. Fetch Monthly Trends (Passing params!)
+    axios.get('http://localhost:8080/api/transactions/stats/monthly', { params })
       .then(res => setBarData(res.data))
       .catch(err => {
         console.error("Error fetching bar chart data:", err);
@@ -44,22 +49,20 @@ export default function DashboardCharts({ refreshTrigger }) {
         ]);
       });
 
-    // 2. Fetch Expense Breakdown
-    axios.get('http://localhost:8080/api/transactions/stats/chart')
+    // 3. Fetch Expense Breakdown (Passing params!)
+    axios.get('http://localhost:8080/api/transactions/stats/chart', { params })
       .then(res => setPieData(res.data))
       .catch(err => console.error("Error fetching pie chart data:", err));
       
-  // 2. ADDED refreshTrigger TO DEPENDENCIES
-  }, [refreshTrigger]); 
+  // 4. THE FIX: Added 'filters' to the dependency array so it refetches when dates change!
+  }, [refreshTrigger, filters]); 
 
-  // Modern, vibrant color palette
   const COLORS = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899'];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       
-      {/* --- CHART 1: MONTHLY TRENDS (Bar Chart) --- */}
-      {/* 3. GLASSMORPHISM CONTAINER UPGRADE */}
+      {/* CHART 1: MONTHLY TRENDS */}
       <div className="lg:col-span-2 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 transition-colors">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight mb-6">Financial Trends</h3>
         <div className="h-72 w-full">
@@ -89,20 +92,25 @@ export default function DashboardCharts({ refreshTrigger }) {
         </div>
       </div>
 
-      {/* --- CHART 2: EXPENSE BREAKDOWN (Pie Chart) --- */}
-      {/* 4. GLASSMORPHISM CONTAINER UPGRADE */}
+      {/* CHART 2: EXPENSE BREAKDOWN */}
+      {/* --- CHART 2: EXPENSE BREAKDOWN --- */}
       <div className="bg-white/80 dark:bg-[#121212]/80 backdrop-blur-xl p-6 rounded-2xl shadow-xl border border-gray-200 dark:border-white/5 transition-colors flex flex-col">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight mb-2">Where money goes</h3>
-        <div className="flex-1 w-full min-h-[18rem]">
+        
+        {/* THE FIX 1: Increased min-height from 18rem to 22rem so the Legend fits! */}
+        <div className="flex-1 w-full min-h-[22rem]"> 
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={70}
-                  outerRadius={90}
+                  cy="45%" // Lifted the pie up slightly to make room for the legend
+                  
+                  // THE FIX 2: Switched from fixed pixels to percentages!
+                  innerRadius="55%" 
+                  outerRadius="75%" 
+                  
                   paddingAngle={5}
                   dataKey="totalAmount" 
                   nameKey="categoryName" 
@@ -113,7 +121,14 @@ export default function DashboardCharts({ refreshTrigger }) {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                
+                {/* THE FIX 3: Made the legend text smaller and gave it padding */}
+                <Legend 
+                  verticalAlign="bottom" 
+                  align="center"
+                  iconType="circle" 
+                  wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} 
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (

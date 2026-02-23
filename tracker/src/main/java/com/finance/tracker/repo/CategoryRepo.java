@@ -1,6 +1,6 @@
 package com.finance.tracker.repo;
 
-import com.finance.tracker.model.Category;
+import com.finance.tracker.entity.Category;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 

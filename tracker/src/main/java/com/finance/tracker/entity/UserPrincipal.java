@@ -1,11 +1,10 @@
-package com.finance.tracker.model; // NOTE: Better to keep this in 'security', not 'model'
+package com.finance.tracker.entity; // NOTE: Better to keep this in 'security', not 'model'
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 public class UserPrincipal implements UserDetails {

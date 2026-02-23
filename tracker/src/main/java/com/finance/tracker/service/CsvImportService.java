@@ -1,9 +1,11 @@
 package com.finance.tracker.service;
 
-import com.finance.tracker.model.Category;
-import com.finance.tracker.model.Transaction;
-import com.finance.tracker.model.User;
+import com.finance.tracker.entity.Category;
+import com.finance.tracker.entity.CategoryRule;
+import com.finance.tracker.entity.Transaction;
+import com.finance.tracker.entity.User;
 import com.finance.tracker.repo.CategoryRepo;
+import com.finance.tracker.repo.CategoryRuleRepo; // NEW
 import com.finance.tracker.repo.TransactionRepo;
 import com.opencsv.CSVReader;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,45 +27,34 @@ public class CsvImportService {
     @Autowired
     private CategoryRepo categoryRepo;
 
-    // Notice: We don't even need UserRepo injected here anymore!
+    @Autowired
+    private CategoryRuleRepo categoryRuleRepo; // Inject the new repo!
 
-    // --- 1. THE FIX: Accept the User object from the Controller ---
     public void saveTransactionsFromCsv(MultipartFile file, User user) throws Exception {
 
-        // (Removed the hardcoded userRepo.findById(1L) logic)
+        // 1. Fetch all the rules the app has learned for THIS user
+        List<CategoryRule> userRules = categoryRuleRepo.findByUser(user);
+
+        // Fetch a fallback category just in case
+        Category generalCategory = categoryRepo.findByName("General")
+                .orElseGet(() -> categoryRepo.save(new Category("General", "EXPENSE")));
 
         try (CSVReader reader = new CSVReader(new InputStreamReader(file.getInputStream()))) {
             List<String[]> rows = reader.readAll();
 
-            // Iterate rows (Skip header at index 0)
             for (int i = 1; i < rows.size(); i++) {
                 String[] row = rows.get(i);
-
-                // SAFETY CHECK: Skip empty or malformed rows
-                if (row.length < 3) {
-                    continue;
-                }
-
-                // Ensure the Amount column is not empty before parsing
-                if (row[2] == null || row[2].trim().isEmpty()) {
-                    continue;
-                }
-
-                String dateStr = row[0].trim();
-                String description = row[1].trim();
-                String amountStr = row[2].trim();
+                if (row.length < 3 || row[2] == null || row[2].trim().isEmpty()) continue;
 
                 try {
                     Transaction transaction = new Transaction();
-                    transaction.setDate(LocalDate.parse(dateStr)); // Format must be YYYY-MM-DD
-                    transaction.setDescription(description);
-                    transaction.setAmount(new BigDecimal(amountStr));
-
-                    // --- 2. THE FIX: Attach the securely authenticated user! ---
+                    transaction.setDate(LocalDate.parse(row[0].trim()));
+                    transaction.setDescription(row[1].trim());
+                    transaction.setAmount(new BigDecimal(row[2].trim()));
                     transaction.setUser(user);
 
-                    // Smart Categorization
-                    assignCategoryAndType(transaction, description);
+                    // 2. SMART CATEGORIZATION: Check the learned rules!
+                    assignCategoryDynamically(transaction, row[1].trim(), userRules, generalCategory);
 
                     transactionRepo.save(transaction);
                 } catch (Exception e) {
@@ -73,34 +64,21 @@ public class CsvImportService {
         }
     }
 
-    private void assignCategoryAndType(Transaction t, String desc) {
+    // THE CLEANED UP, OPTIMIZED METHOD
+    private void assignCategoryDynamically(Transaction t, String desc, List<CategoryRule> rules, Category fallback) {
         String lowerDesc = desc.toLowerCase(Locale.ROOT);
-        String categoryName = "General";
-        String type = "EXPENSE";
 
-        // Determine Category Name & Type
-        if (lowerDesc.contains("salary") || lowerDesc.contains("credit")) {
-            type = "INCOME";
-            categoryName = "Salary";
-        }
-        else if (lowerDesc.contains("zomato") || lowerDesc.contains("swiggy") || lowerDesc.contains("starbucks")) {
-            categoryName = "Food";
-        }
-        else if (lowerDesc.contains("uber") || lowerDesc.contains("ola") || lowerDesc.contains("fuel")) {
-            categoryName = "Transport";
+        // Check if the description matches any of the user's learned rules
+        for (CategoryRule rule : rules) {
+            if (lowerDesc.contains(rule.getKeyword().toLowerCase())) {
+                t.setCategory(rule.getCategory());
+                t.setType(rule.getCategory().getType());
+                return; // Match found! Stop looking.
+            }
         }
 
-        t.setType(type);
-
-        final String finalCategoryName = categoryName;
-
-        Category category = categoryRepo.findByName(finalCategoryName)
-                .orElseGet(() -> {
-                    Category newCat = new Category();
-                    newCat.setName(finalCategoryName);
-                    return categoryRepo.save(newCat);
-                });
-
-        t.setCategory(category);
+        // If no rule matches, default to "General"
+        t.setCategory(fallback);
+        t.setType(fallback.getType());
     }
 }

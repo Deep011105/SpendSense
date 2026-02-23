@@ -3,12 +3,15 @@ package com.finance.tracker.controller;
 import com.finance.tracker.dto.CategoryStatsDTO;
 import com.finance.tracker.dto.StatsDTO;
 import com.finance.tracker.dto.TransactionDTO;
-import com.finance.tracker.model.Transaction;
-import com.finance.tracker.model.User;
+import com.finance.tracker.entity.Category;
+import com.finance.tracker.entity.CategoryRule;
+import com.finance.tracker.entity.Transaction;
+import com.finance.tracker.entity.User;
 import com.finance.tracker.repo.TransactionRepo;
 import com.finance.tracker.repo.UserRepo;
 import com.finance.tracker.service.CsvImportService;
 import com.finance.tracker.service.TransactionService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -156,5 +159,50 @@ public class TransactionController {
     public List<com.finance.tracker.dto.MonthlyStatsDTO> getMonthlyStats() {
         User user = getAuthenticatedUser();
         return transactionService.getMonthlyStats(user);
+    }
+
+    @Autowired
+    private com.finance.tracker.repo.CategoryRuleRepo categoryRuleRepo;
+
+    @Autowired
+    private com.finance.tracker.repo.CategoryRepo categoryRepo;
+
+    // --- THE SILENT AUTO-LEARNING ENDPOINT ---
+    @PutMapping("/{id}/category")
+    public ResponseEntity<?> updateTransactionCategory(@PathVariable Long id, @RequestParam String newCategoryName) {
+        User user = getAuthenticatedUser();
+
+        // 1. Find the transaction
+        Transaction transaction = transactionRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        // Security check: Make sure this user owns the transaction
+        if (!transaction.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Access denied");
+        }
+
+        // 2. Find the new category
+        Category newCategory = categoryRepo.findByName(newCategoryName)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        // 3. Update the transaction
+        transaction.setCategory(newCategory);
+        transaction.setType(newCategory.getType());
+        transactionRepo.save(transaction);
+
+        // 4. THE MAGIC: Save a new rule so the app remembers this for next time!
+        // We take the first word of the description as the keyword (e.g., "UBER EATS" -> "uber")
+        String keyword = transaction.getDescription().split(" ")[0].toLowerCase();
+
+        // Check if a rule already exists so we don't create duplicates
+        boolean ruleExists = categoryRuleRepo.findByUser(user).stream()
+                .anyMatch(rule -> rule.getKeyword().equals(keyword));
+
+        if (!ruleExists) {
+            CategoryRule newRule = new CategoryRule(keyword, newCategory, user);
+            categoryRuleRepo.save(newRule);
+        }
+
+        return ResponseEntity.ok("Transaction updated and new rule learned silently!");
     }
 }

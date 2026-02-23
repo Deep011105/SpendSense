@@ -56,9 +56,22 @@ function Dashboard() {
   };
 
   // When the user upgrades via the demo modal, save it to local storage too
-  const handleUpgrade = () => {
-    setUserTier('PREMIUM');
-    localStorage.setItem('userTier', 'PREMIUM');
+  // --- THE NEW DATABASE-LINKED UPGRADE FUNCTION ---
+  const handleUpgrade = async () => {
+    try {
+      // 1. Tell the Spring Boot database to upgrade this user
+      await axios.put('http://localhost:8080/api/users/upgrade');
+      
+      // 2. Update the React frontend state
+      setUserTier('PREMIUM');
+      localStorage.setItem('userTier', 'PREMIUM');
+      
+      // (Optional: You could even fetch a fresh JWT token here in a real app, 
+      // but for this portfolio project, updating the state is perfectly fine!)
+    } catch (error) {
+      console.error("Failed to upgrade user in database:", error);
+      toast.error("Upgrade failed. Please try again.");
+    }
   };
 
   return (
@@ -101,7 +114,7 @@ function Dashboard() {
           <StatCard title="Expenses" amount={`$${stats.totalExpense.toFixed(2)}`} Icon={TrendingDown} type="danger" />
         </div>
 
-        <DashboardCharts refreshTrigger={refreshTrigger} />
+        <DashboardCharts refreshTrigger={refreshTrigger} filters={filters} />
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <div className="lg:col-span-1 space-y-6">

@@ -3,7 +3,7 @@ package com.finance.tracker.controller;
 import com.finance.tracker.dto.JwtResponse;
 import com.finance.tracker.dto.LoginRequest;
 import com.finance.tracker.dto.SignupRequest;
-import com.finance.tracker.model.User;
+import com.finance.tracker.entity.User;
 import com.finance.tracker.repo.UserRepo;
 import com.finance.tracker.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;

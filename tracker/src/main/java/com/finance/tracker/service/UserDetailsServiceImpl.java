@@ -1,6 +1,6 @@
 package com.finance.tracker.service;
 
-import com.finance.tracker.model.User;
+import com.finance.tracker.entity.User;
 import com.finance.tracker.repo.UserRepo;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

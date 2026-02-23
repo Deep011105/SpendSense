@@ -1,4 +1,4 @@
-package com.finance.tracker.model;
+package com.finance.tracker.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -15,9 +15,16 @@ public class Category {
     @Column(nullable = false, unique = true)
     private String name;
 
-    public Category(String name) {
+    // --- ADDED: The type field (INCOME or EXPENSE) ---
+    @Column(nullable = false)
+    private String type;
+
+    // --- UPDATED: Constructor now takes both name and type ---
+    public Category(String name, String type) {
         this.name = name;
+        this.type = type;
     }
 
+    // Required by JPA
     public Category() {}
 }

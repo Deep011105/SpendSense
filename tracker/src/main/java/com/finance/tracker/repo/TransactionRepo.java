@@ -1,8 +1,8 @@
 package com.finance.tracker.repo;
 
 import com.finance.tracker.dto.CategoryStatsDTO;
-import com.finance.tracker.model.Transaction;
-import com.finance.tracker.model.User;
+import com.finance.tracker.entity.Transaction;
+import com.finance.tracker.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -31,9 +31,10 @@ public interface TransactionRepo extends JpaRepository<Transaction, Long> {
     @Query("SELECT new com.finance.tracker.dto.CategoryStatsDTO(c.name, SUM(t.amount)) " +
             "FROM Transaction t " +
             "JOIN t.category c " +
-            "WHERE t.user = :user AND t.type = 'Expense' " +
+            // THE FIX: Use UPPER() to catch both "Expense" and "EXPENSE"
+            "WHERE t.user = :user AND UPPER(t.type) = 'EXPENSE' " +
             "GROUP BY c.name")
-    List<CategoryStatsDTO> findExpenseStatsByUser(User user);
+    List<CategoryStatsDTO> findExpenseStatsByUser(@Param("user") User user);
 
     // 1. For the Table (Pagination + Filter)
     Page<Transaction> findByUserAndDateBetween(User user, LocalDate startDate, LocalDate endDate, Pageable pageable);

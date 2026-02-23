@@ -1,7 +1,10 @@
 package com.finance.tracker.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class SignupRequest {
 
+    @JsonProperty("name")
     private String fullName; // <--- Add this
     private String email;
     private String password;
